@@ -141,20 +141,20 @@ async function handleCommand(
   }
 
   if (cmd === "project" || cmd === "projects") {
-    const words = splitWords(args);
-    if (words.length === 0) {
+    const projectArg = args.trim();
+    if (!projectArg) {
       const projects = listProjects(cfg.projectsBaseDir);
       if (projects.length === 0) return "没有项目。用 `/project new <name>` 创建。";
       return `**项目列表**\n${projects.map((p) => `${p === currentProject ? "▶" : " "} ${p}`).join("\n")}`;
     }
-    if (words[0] === "new") {
-      const name = words[1];
+    if (/^new(?:\s+|$)/u.test(projectArg)) {
+      const name = projectArg.replace(/^new\s*/u, "");
       if (!name) return "用法: /project new <name>";
       const dir = ensureProject(cfg.projectsBaseDir, name);
       state.setActiveProject(chatId, name);
       return `✅ 已创建并切换到项目 ${name}\n${dir}`;
     }
-    const name = words[0];
+    const name = projectArg;
     if (!projectExists(cfg.projectsBaseDir, name)) return `❌ 项目 ${name} 不存在。用 /project new ${name} 创建。`;
     state.setActiveProject(chatId, name);
     return `✅ 已切换到项目 ${name}`;

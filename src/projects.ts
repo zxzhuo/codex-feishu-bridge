@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const SAFE_PROJECT_RE = /^[A-Za-z0-9._-]+$/;
-
 export function assertSafeProjectName(name: string): void {
-  if (!name || !SAFE_PROJECT_RE.test(name) || name === "..") {
-    throw new Error("项目名只能包含字母、数字、点、下划线和横线；'.' 表示 workspace 本身");
+  if (!name || name.trim() !== name) {
+    throw new Error("项目名不能为空，且不能以空白字符开头或结尾");
+  }
+  if (name === ".." || name.includes("/") || name.includes("\\") || name.includes("\0")) {
+    throw new Error("项目名不能是 '..'，也不能包含路径分隔符");
   }
 }
 

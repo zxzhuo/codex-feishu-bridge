@@ -128,8 +128,8 @@ If a command fails, the CLI first prints the error message, then prints this ful
 | `/help` | Show help |
 | `/status` | Show active project, cwd, Codex session, state file |
 | `/project` | List projects |
-| `/project <name>` | Switch to an existing project |
-| `/project new <name>` | Create and switch project |
+| `/project <name>` | Switch to an existing project; Unicode names such as Chinese are supported |
+| `/project new <name>` | Create and switch project; Unicode names such as Chinese are supported |
 | `/new` | Clear current project session; next message starts a new Codex session |
 | `/sessions` | List recent Codex sessions recorded by the bridge |
 | `/abort` | Stop current Codex process for this chat/project |
@@ -209,6 +209,7 @@ chatId + project -> Codex thread_id
 ## Notes
 
 - Default work path is `~/`; set `workspaceDir` / `projectsBaseDir`, `CODEX_FEISHU_WORKSPACE_DIR`, or `--workspace-dir` to override the workspace root. Set `defaultProject` / `--default-project` to choose a subdirectory; `.` means the workspace root itself.
+- Project names support Unicode, including Chinese. For safety, project names cannot be empty, `..`, or contain path separators.
 - `codex-feishu start` starts a background process and writes pid/log files under `stateDir` (`~/.codex-feishu` by default).
 - `codex-feishu run` stays in the foreground and is better for first-time debugging.
 - `promptTimeoutMs: 0` means no bridge-side timeout.
