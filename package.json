@@ -1,0 +1,55 @@
+{
+  "name": "codex-feishu-bridge",
+  "version": "0.1.0",
+  "description": "Bridge Feishu/Lark chats to Codex CLI with persistent Codex sessions and remote-control management.",
+  "author": "zxzhuo (Jansonchow / 卓正兴) <zxzhuo@gmail.com>",
+  "keywords": [
+    "codex",
+    "feishu",
+    "lark",
+    "agent",
+    "chatbot",
+    "remote-control",
+    "cli"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/zxzhuo/codex-feishu-bridge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zxzhuo/codex-feishu-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zxzhuo/codex-feishu-bridge/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "codex-feishu": "bin/codex-feishu.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "bin/",
+    "dist/",
+    "config.example.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "start": "node ./bin/codex-feishu.js run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.52.0",
+    "feishu-agent-bridge": "^1.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

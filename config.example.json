@@ -1,0 +1,18 @@
+{
+  "appId": "cli_xxxxxxxxxxxx",
+  "appSecret": "${FEISHU_APP_SECRET}",
+  "transport": "ws",
+  "allowedOpenIds": ["ou_replace_with_current_app_open_id"],
+  "ownerOnly": true,
+  "projectsBaseDir": "~/workplace/projects",
+  "stateDir": "~/.codex-feishu",
+  "defaultProject": "default",
+  "codexBin": "codex",
+  "codexModel": "gpt-5.5",
+  "skipGitRepoCheck": true,
+  "promptTimeoutMs": 0,
+  "dedupTtlMs": 600000,
+  "streamFlushMs": 1200,
+  "maxReplyChars": 24000,
+  "logLevel": "info"
+}
