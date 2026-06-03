@@ -4,7 +4,7 @@
   "transport": "ws",
   "allowedOpenIds": ["ou_replace_with_current_app_open_id"],
   "ownerOnly": true,
-  "projectsBaseDir": "~/workplace/projects",
+  "workspaceDir": "~/workplace/projects",
   "stateDir": "~/.codex-feishu",
   "defaultProject": "default",
   "codexBin": "codex",

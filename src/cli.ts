@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { defaultConfigPath, loadConfig, redactedConfig, type Config } from "./config.js";
+import { defaultConfigPath, defaultWorkspaceDir, loadConfig, redactedConfig, type Config, type ConfigOverrides } from "./config.js";
 import { startBridge } from "./bridge.js";
 
 const FALLBACK_HELP = `# codex-feishu-bridge
@@ -30,7 +30,9 @@ Feishu/Lark bot bridge for Codex CLI.
   --app-secret <secret>            Feishu app secret (prefer --app-secret-env)
   --app-secret-env <ENV>           env var name containing secret, default FEISHU_APP_SECRET
   --owner-open-id <ou_xxx>         restrict bot to owner open_id; repeatable or comma-separated
-  --projects-dir <dir>             project root, default ~/workplace/projects
+  --workspace-dir <dir>            workspace/project root, default ~/workplace/projects
+  --projects-dir <dir>             alias of --workspace-dir, kept for compatibility
+  --state-dir <dir>                runtime state/log/pid directory, default ~/.codex-feishu
   --default-project <name>         default project, default default
   --codex-bin <path>               codex executable, default codex
   --transport <ws|http|both>       Feishu transport, default ws
@@ -94,13 +96,29 @@ function collect(args: string[], name: string): string[] {
   return out;
 }
 
+function runtimeOverrides(args: string[]): ConfigOverrides {
+  return {
+    workspaceDir: take(args, "--workspace-dir") ?? take(args, "--projects-dir"),
+    stateDir: take(args, "--state-dir"),
+    defaultProject: take(args, "--default-project"),
+  };
+}
+
+function applyOverridesToEnv(env: NodeJS.ProcessEnv, cfg: Config, overrides: ConfigOverrides): NodeJS.ProcessEnv {
+  const next = { ...env };
+  if (overrides.workspaceDir || overrides.projectsBaseDir) next.CODEX_FEISHU_WORKSPACE_DIR = cfg.projectsBaseDir;
+  if (overrides.stateDir) next.CODEX_FEISHU_STATE_DIR = cfg.stateDir;
+  if (overrides.defaultProject) next.CODEX_FEISHU_DEFAULT_PROJECT = cfg.defaultProject;
+  return next;
+}
+
 async function init(args: string[]): Promise<void> {
   const configPath = take(args, "--config") ?? defaultConfigPath();
   const appId = take(args, "--app-id") ?? process.env.FEISHU_APP_ID;
   const appSecret = take(args, "--app-secret");
   const appSecretEnv = take(args, "--app-secret-env") ?? (appSecret ? undefined : "FEISHU_APP_SECRET");
   const owners = collect(args, "--owner-open-id");
-  const projectsBaseDir = take(args, "--projects-dir") ?? path.join(os.homedir(), "workplace", "projects");
+  const projectsBaseDir = take(args, "--workspace-dir") ?? take(args, "--projects-dir") ?? defaultWorkspaceDir();
   const defaultProject = take(args, "--default-project") ?? "default";
   const codexBin = take(args, "--codex-bin") ?? "codex";
   const transport = take(args, "--transport") ?? "ws";
@@ -140,8 +158,8 @@ async function init(args: string[]): Promise<void> {
   console.log("Next: codex-feishu start");
 }
 
-async function doctor(): Promise<void> {
-  const cfg = loadConfig();
+async function doctor(args: string[]): Promise<void> {
+  const cfg = loadConfig(runtimeOverrides(args));
   console.log(JSON.stringify(redactedConfig(cfg), null, 2));
   const res = spawnSync(cfg.codexBin, ["--version"], { encoding: "utf8" });
   if (res.error) throw res.error;
@@ -175,8 +193,9 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-async function startDaemon(): Promise<void> {
-  const cfg = loadConfig();
+async function startDaemon(args: string[]): Promise<void> {
+  const overrides = runtimeOverrides(args);
+  const cfg = loadConfig(overrides);
   const { pidFile, logFile } = daemonPaths(cfg);
   const oldPid = readPid(pidFile);
   if (oldPid && isProcessAlive(oldPid)) {
@@ -188,7 +207,7 @@ async function startDaemon(): Promise<void> {
   const logFd = fs.openSync(logFile, "a");
   const child = spawn(process.execPath, [process.argv[1] ?? "", "run"], {
     cwd: process.cwd(),
-    env: process.env,
+    env: applyOverridesToEnv(process.env, cfg, overrides),
     detached: true,
     stdio: ["ignore", logFd, logFd],
   });
@@ -200,8 +219,8 @@ async function startDaemon(): Promise<void> {
   console.log(`log: ${logFile}`);
 }
 
-async function stopDaemon(): Promise<void> {
-  const cfg = loadConfig();
+async function stopDaemon(args: string[]): Promise<void> {
+  const cfg = loadConfig(runtimeOverrides(args));
   const { pidFile, logFile } = daemonPaths(cfg);
   const pid = readPid(pidFile);
   if (!pid || !isProcessAlive(pid)) {
@@ -220,13 +239,13 @@ async function stopDaemon(): Promise<void> {
   console.log(`log: ${logFile}`);
 }
 
-async function restartDaemon(): Promise<void> {
-  await stopDaemon();
-  await startDaemon();
+async function restartDaemon(args: string[]): Promise<void> {
+  await stopDaemon([...args]);
+  await startDaemon(args);
 }
 
-function statusDaemon(): void {
-  const cfg = loadConfig();
+function statusDaemon(args: string[]): void {
+  const cfg = loadConfig(runtimeOverrides(args));
   const { pidFile, logFile } = daemonPaths(cfg);
   const pid = readPid(pidFile);
   if (pid && isProcessAlive(pid)) console.log(`✅ codex-feishu running: pid=${pid}`);
@@ -236,7 +255,7 @@ function statusDaemon(): void {
 }
 
 function logsDaemon(args: string[]): void {
-  const cfg = loadConfig();
+  const cfg = loadConfig(runtimeOverrides(args));
   const { logFile } = daemonPaths(cfg);
   const lines = Number(take(args, "--lines") ?? "80");
   if (!fs.existsSync(logFile)) {
@@ -249,8 +268,8 @@ function logsDaemon(args: string[]): void {
   process.stderr.write(res.stderr);
 }
 
-async function run(): Promise<void> {
-  const cfg = loadConfig();
+async function run(args: string[]): Promise<void> {
+  const cfg = loadConfig(runtimeOverrides(args));
   const shutdownFn = await startBridge(cfg);
   let shuttingDown = false;
   async function shutdown(signal: string) {
@@ -269,15 +288,15 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const cmd = argv.shift() ?? "help";
     if (cmd === "help" || cmd === "--help" || cmd === "-h") return printHelp();
     if (cmd === "init") return init(argv);
-    if (cmd === "start") return startDaemon();
-    if (cmd === "run") return run();
-    if (cmd === "stop") return stopDaemon();
-    if (cmd === "restart") return restartDaemon();
-    if (cmd === "status") return statusDaemon();
+    if (cmd === "start") return startDaemon(argv);
+    if (cmd === "run") return run(argv);
+    if (cmd === "stop") return stopDaemon(argv);
+    if (cmd === "restart") return restartDaemon(argv);
+    if (cmd === "status") return statusDaemon(argv);
     if (cmd === "logs") return logsDaemon(argv);
-    if (cmd === "doctor") return doctor();
+    if (cmd === "doctor") return doctor(argv);
     if (cmd === "config") {
-      console.log(JSON.stringify(redactedConfig(loadConfig()), null, 2));
+      console.log(JSON.stringify(redactedConfig(loadConfig(runtimeOverrides(argv))), null, 2));
       return;
     }
     throw new Error(`unknown command: ${cmd}`);

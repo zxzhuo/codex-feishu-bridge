@@ -26,7 +26,14 @@ export interface Config {
   logLevel: LogLevel;
 }
 
-type FileConfig = Partial<Config & { appSecretEnv: string }>;
+export interface ConfigOverrides {
+  workspaceDir?: string;
+  projectsBaseDir?: string;
+  stateDir?: string;
+  defaultProject?: string;
+}
+
+type FileConfig = Partial<Config & { appSecretEnv: string; workspaceDir: string }>;
 
 const CONFIG_PATHS = [
   process.env.CODEX_FEISHU_CONFIG,
@@ -35,6 +42,10 @@ const CONFIG_PATHS = [
 
 export function defaultConfigPath(): string {
   return path.join(os.homedir(), ".config", "codex-feishu", "config.json");
+}
+
+export function defaultWorkspaceDir(): string {
+  return path.join(os.homedir(), "workplace", "projects");
 }
 
 function expandEnv(val: string): string {
@@ -68,7 +79,16 @@ function parseCsv(value: string | undefined): string[] | undefined {
   return value.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-export function loadConfig(): Config {
+function firstDefined<T>(...values: Array<T | undefined>): T | undefined {
+  return values.find((v) => v !== undefined);
+}
+
+function pickPath(...values: Array<string | undefined>): string {
+  const value = firstDefined(...values);
+  return expandHome(value ?? "");
+}
+
+export function loadConfig(overrides: ConfigOverrides = {}): Config {
   const file = loadFile();
   const secretFromEnvName = file.appSecretEnv ? process.env[file.appSecretEnv] : undefined;
   const appId = process.env.FEISHU_APP_ID ?? file.appId ?? "";
@@ -88,12 +108,17 @@ export function loadConfig(): Config {
     ownerOnly: process.env.CODEX_FEISHU_OWNER_ONLY
       ? process.env.CODEX_FEISHU_OWNER_ONLY === "1" || process.env.CODEX_FEISHU_OWNER_ONLY === "true"
       : file.ownerOnly ?? true,
-    projectsBaseDir:
-      process.env.CODEX_FEISHU_PROJECTS_DIR ??
-      file.projectsBaseDir ??
-      path.join(os.homedir(), "workplace", "projects"),
-    stateDir: process.env.CODEX_FEISHU_STATE_DIR ?? file.stateDir ?? path.join(os.homedir(), ".codex-feishu"),
-    defaultProject: process.env.CODEX_FEISHU_DEFAULT_PROJECT ?? file.defaultProject ?? "default",
+    projectsBaseDir: pickPath(
+      overrides.workspaceDir,
+      overrides.projectsBaseDir,
+      process.env.CODEX_FEISHU_WORKSPACE_DIR,
+      process.env.CODEX_FEISHU_PROJECTS_DIR,
+      file.workspaceDir,
+      file.projectsBaseDir,
+      defaultWorkspaceDir(),
+    ),
+    stateDir: pickPath(overrides.stateDir, process.env.CODEX_FEISHU_STATE_DIR, file.stateDir, path.join(os.homedir(), ".codex-feishu")),
+    defaultProject: overrides.defaultProject ?? process.env.CODEX_FEISHU_DEFAULT_PROJECT ?? file.defaultProject ?? "default",
     codexBin: process.env.CODEX_BIN ?? file.codexBin ?? "codex",
     codexModel: process.env.CODEX_MODEL ?? file.codexModel,
     codexProfile: process.env.CODEX_PROFILE ?? file.codexProfile,

@@ -13,6 +13,14 @@ The bridge is designed around real remote-coding usage:
 - **Codex CLI service management is explicit**: `/codex remote-start`, `/codex remote-stop`, `/codex doctor`, etc. are executed by the bridge host as local `codex` CLI commands; they are not sent into a Codex conversation.
 - **Install should not be fragile**: config is created by `codex-feishu init`; secrets can stay in environment variables.
 
+## Source
+
+GitHub: https://github.com/zxzhuo/codex-feishu-bridge
+
+```bash
+git clone https://github.com/zxzhuo/codex-feishu-bridge.git
+```
+
 ## Install
 
 ```bash
@@ -35,7 +43,7 @@ codex-feishu init \
   --app-id cli_xxx \
   --app-secret-env FEISHU_APP_SECRET \
   --owner-open-id ou_xxx \
-  --projects-dir ~/workplace/projects \
+  --workspace-dir ~/workplace/projects \
   --default-project default
 ```
 
@@ -69,6 +77,22 @@ codex-feishu restart   # restart background bridge
 codex-feishu status    # show pid/log paths
 codex-feishu logs      # tail recent logs
 ```
+
+The default workspace/project root is `~/workplace/projects`. You can override it in config, env, or per start/run command:
+
+```bash
+# one-time config at init
+codex-feishu init --workspace-dir /path/to/projects ...
+
+# per process start
+codex-feishu start --workspace-dir /path/to/projects
+codex-feishu run --workspace-dir /path/to/projects
+
+# env override
+CODEX_FEISHU_WORKSPACE_DIR=/path/to/projects codex-feishu start
+```
+
+`--projects-dir` is kept as a backward-compatible alias of `--workspace-dir`.
 
 ## Feishu app requirements
 
@@ -130,7 +154,7 @@ Example config:
   "transport": "ws",
   "allowedOpenIds": ["ou_replace_with_current_app_open_id"],
   "ownerOnly": true,
-  "projectsBaseDir": "~/workplace/projects",
+  "workspaceDir": "~/workplace/projects",
   "stateDir": "~/.codex-feishu",
   "defaultProject": "default",
   "codexBin": "codex",
@@ -155,7 +179,7 @@ Environment overrides include:
 - `FEISHU_APP_ID`, `FEISHU_APP_SECRET`
 - `FEISHU_TRANSPORT`
 - `CODEX_FEISHU_ALLOWED_OPEN_IDS` (comma-separated)
-- `CODEX_FEISHU_PROJECTS_DIR`
+- `CODEX_FEISHU_WORKSPACE_DIR` / `CODEX_FEISHU_PROJECTS_DIR`
 - `CODEX_FEISHU_DEFAULT_PROJECT`
 - `CODEX_BIN`, `CODEX_MODEL`, `CODEX_PROFILE`, `CODEX_SANDBOX`, `CODEX_APPROVAL`
 
@@ -175,6 +199,7 @@ chatId + project -> Codex thread_id
 
 ## Notes
 
+- Default workspace/project root is `~/workplace/projects`; set `workspaceDir` / `projectsBaseDir`, `CODEX_FEISHU_WORKSPACE_DIR`, or `--workspace-dir` to override it.
 - `codex-feishu start` starts a background process and writes pid/log files under `stateDir` (`~/.codex-feishu` by default).
 - `codex-feishu run` stays in the foreground and is better for first-time debugging.
 - `promptTimeoutMs: 0` means no bridge-side timeout.
