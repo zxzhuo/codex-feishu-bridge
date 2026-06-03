@@ -15,7 +15,7 @@ Feishu/Lark bot bridge for Codex CLI.
 
 GitHub: https://github.com/zxzhuo/codex-feishu-bridge
 
-中文作者: 卓正兴
+author: 卓正兴
 
 ## Usage
 

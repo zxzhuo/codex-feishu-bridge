@@ -17,7 +17,7 @@ The bridge is designed around real remote-coding usage:
 
 GitHub: https://github.com/zxzhuo/codex-feishu-bridge
 
-中文作者: 卓正兴
+author: 卓正兴
 
 ```bash
 git clone https://github.com/zxzhuo/codex-feishu-bridge.git
