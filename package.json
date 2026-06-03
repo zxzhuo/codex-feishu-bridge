@@ -1,6 +1,6 @@
 {
   "name": "codex-feishu-bridge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bridge Feishu/Lark chats to Codex CLI with persistent Codex sessions and remote-control management.",
   "author": "zxzhuo (Jansonchow / 卓正兴) <zxzhuo@gmail.com>",
   "keywords": [

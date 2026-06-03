@@ -42,9 +42,18 @@ export FEISHU_APP_SECRET='your-secret'
 codex-feishu init \
   --app-id cli_xxx \
   --app-secret-env FEISHU_APP_SECRET \
+  --owner-open-id ou_xxx
+```
+
+By default Codex runs in your home directory (`~/`). To use another workspace/project root:
+
+```bash
+codex-feishu init \
+  --app-id cli_xxx \
+  --app-secret-env FEISHU_APP_SECRET \
   --owner-open-id ou_xxx \
   --workspace-dir ~/workplace/projects \
-  --default-project default
+  --default-project .
 ```
 
 This writes:
@@ -78,11 +87,11 @@ codex-feishu status    # show pid/log paths
 codex-feishu logs      # tail recent logs
 ```
 
-The default workspace/project root is `~/workplace/projects`. You can override it in config, env, or per start/run command:
+The default work path is `~/` (`workspaceDir: "~"`, `defaultProject: "."`). You can override it in config, env, or per start/run command:
 
 ```bash
 # one-time config at init
-codex-feishu init --workspace-dir /path/to/projects ...
+codex-feishu init --workspace-dir /path/to/projects --default-project . ...
 
 # per process start
 codex-feishu start --workspace-dir /path/to/projects
@@ -154,9 +163,9 @@ Example config:
   "transport": "ws",
   "allowedOpenIds": ["ou_replace_with_current_app_open_id"],
   "ownerOnly": true,
-  "workspaceDir": "~/workplace/projects",
+  "workspaceDir": "~",
   "stateDir": "~/.codex-feishu",
-  "defaultProject": "default",
+  "defaultProject": ".",
   "codexBin": "codex",
   "codexModel": "gpt-5.5",
   "codexSandbox": "workspace-write",
@@ -199,7 +208,7 @@ chatId + project -> Codex thread_id
 
 ## Notes
 
-- Default workspace/project root is `~/workplace/projects`; set `workspaceDir` / `projectsBaseDir`, `CODEX_FEISHU_WORKSPACE_DIR`, or `--workspace-dir` to override it.
+- Default work path is `~/`; set `workspaceDir` / `projectsBaseDir`, `CODEX_FEISHU_WORKSPACE_DIR`, or `--workspace-dir` to override the workspace root. Set `defaultProject` / `--default-project` to choose a subdirectory; `.` means the workspace root itself.
 - `codex-feishu start` starts a background process and writes pid/log files under `stateDir` (`~/.codex-feishu` by default).
 - `codex-feishu run` stays in the foreground and is better for first-time debugging.
 - `promptTimeoutMs: 0` means no bridge-side timeout.

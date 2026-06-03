@@ -45,7 +45,7 @@ export function defaultConfigPath(): string {
 }
 
 export function defaultWorkspaceDir(): string {
-  return path.join(os.homedir(), "workplace", "projects");
+  return os.homedir();
 }
 
 function expandEnv(val: string): string {
@@ -118,7 +118,7 @@ export function loadConfig(overrides: ConfigOverrides = {}): Config {
       defaultWorkspaceDir(),
     ),
     stateDir: pickPath(overrides.stateDir, process.env.CODEX_FEISHU_STATE_DIR, file.stateDir, path.join(os.homedir(), ".codex-feishu")),
-    defaultProject: overrides.defaultProject ?? process.env.CODEX_FEISHU_DEFAULT_PROJECT ?? file.defaultProject ?? "default",
+    defaultProject: overrides.defaultProject ?? process.env.CODEX_FEISHU_DEFAULT_PROJECT ?? file.defaultProject ?? ".",
     codexBin: process.env.CODEX_BIN ?? file.codexBin ?? "codex",
     codexModel: process.env.CODEX_MODEL ?? file.codexModel,
     codexProfile: process.env.CODEX_PROFILE ?? file.codexProfile,

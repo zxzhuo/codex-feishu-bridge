@@ -30,10 +30,10 @@ Feishu/Lark bot bridge for Codex CLI.
   --app-secret <secret>            Feishu app secret (prefer --app-secret-env)
   --app-secret-env <ENV>           env var name containing secret, default FEISHU_APP_SECRET
   --owner-open-id <ou_xxx>         restrict bot to owner open_id; repeatable or comma-separated
-  --workspace-dir <dir>            workspace/project root, default ~/workplace/projects
+  --workspace-dir <dir>            workspace/project root, default ~
   --projects-dir <dir>             alias of --workspace-dir, kept for compatibility
   --state-dir <dir>                runtime state/log/pid directory, default ~/.codex-feishu
-  --default-project <name>         default project, default default
+  --default-project <name>         default project, default . (workspace root)
   --codex-bin <path>               codex executable, default codex
   --transport <ws|http|both>       Feishu transport, default ws
   --no-owner-only                  allow all users who @bot / DM bot
@@ -119,7 +119,7 @@ async function init(args: string[]): Promise<void> {
   const appSecretEnv = take(args, "--app-secret-env") ?? (appSecret ? undefined : "FEISHU_APP_SECRET");
   const owners = collect(args, "--owner-open-id");
   const projectsBaseDir = take(args, "--workspace-dir") ?? take(args, "--projects-dir") ?? defaultWorkspaceDir();
-  const defaultProject = take(args, "--default-project") ?? "default";
+  const defaultProject = take(args, "--default-project") ?? ".";
   const codexBin = take(args, "--codex-bin") ?? "codex";
   const transport = take(args, "--transport") ?? "ws";
   const ownerOnly = !has(args, "--no-owner-only");
@@ -136,7 +136,7 @@ async function init(args: string[]): Promise<void> {
     transport,
     allowedOpenIds: owners,
     ownerOnly,
-    projectsBaseDir,
+    workspaceDir: projectsBaseDir,
     stateDir: path.join(os.homedir(), ".codex-feishu"),
     defaultProject,
     codexBin,

@@ -4,8 +4,8 @@ import path from "node:path";
 const SAFE_PROJECT_RE = /^[A-Za-z0-9._-]+$/;
 
 export function assertSafeProjectName(name: string): void {
-  if (!name || !SAFE_PROJECT_RE.test(name) || name === "." || name === "..") {
-    throw new Error("项目名只能包含字母、数字、点、下划线和横线");
+  if (!name || !SAFE_PROJECT_RE.test(name) || name === "..") {
+    throw new Error("项目名只能包含字母、数字、点、下划线和横线；'.' 表示 workspace 本身");
   }
 }
 
