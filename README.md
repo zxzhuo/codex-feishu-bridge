@@ -17,6 +17,8 @@ The bridge is designed around real remote-coding usage:
 
 GitHub: https://github.com/zxzhuo/codex-feishu-bridge
 
+中文作者: 卓正兴
+
 ```bash
 git clone https://github.com/zxzhuo/codex-feishu-bridge.git
 ```
@@ -131,6 +133,7 @@ If a command fails, the CLI first prints the error message, then prints this ful
 | `/project <name>` | Switch to an existing project; Unicode names such as Chinese are supported |
 | `/project new <name>` | Create and switch project; Unicode names such as Chinese are supported |
 | `/new` | Clear current project session; next message starts a new Codex session |
+| `/compact` | Compact the current Codex session with an English prompt, then switch to a fresh continuation session |
 | `/sessions` | List recent Codex sessions recorded by the bridge |
 | `/abort` | Stop current Codex process for this chat/project |
 | `/codex remote-start` | Run `codex remote-control start` on the bridge host |
@@ -213,6 +216,7 @@ chatId + project -> Codex thread_id
 - `codex-feishu start` starts a background process and writes pid/log files under `stateDir` (`~/.codex-feishu` by default).
 - `codex-feishu run` stays in the foreground and is better for first-time debugging.
 - `promptTimeoutMs: 0` means no bridge-side timeout.
+- `maxReplyChars` is the maximum markdown body size per Feishu card. Long Codex outputs are split into multiple cards instead of being truncated.
 - The bridge does not expose secrets in `codex-feishu config`.
 - `ownerOnly: true` is recommended. In group chats, still verify the sender open_id.
 

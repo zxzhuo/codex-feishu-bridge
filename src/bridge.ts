@@ -3,7 +3,7 @@ import { createFeishuService, type FeishuMessageContext } from "feishu-agent-bri
 import type { Config } from "./config.js";
 import { CardController, sendText } from "./card.js";
 import { ChatQueue } from "./chat-queue.js";
-import { CodexRunner } from "./codex.js";
+import { CodexRunner, type CodexUsage } from "./codex.js";
 import { DedupCache } from "./dedup.js";
 import { getLogger, initLogger } from "./logger.js";
 import { ensureProject, listProjects, projectExists } from "./projects.js";
@@ -19,6 +19,7 @@ const BUILTIN_COMMANDS = new Set([
   "status",
   "project", "projects",
   "new",
+  "compact",
   "sessions",
   "abort", "stop",
   "codex",
@@ -52,6 +53,40 @@ function formatSessionLine(s: SessionRecord, i: number): string {
 
 function splitWords(input: string): string[] {
   return input.split(/\s+/).map((s) => s.trim()).filter(Boolean);
+}
+
+const COMPACT_PROMPT = `Please compact the current Codex session context for future continuation.
+
+Return a concise but complete handoff note in English. Include:
+- Current goal and user intent
+- Relevant repository, workspace, and file paths
+- Completed changes and important decisions
+- Pending work, risks, and next steps
+- Commands, tests, configuration values, and constraints that matter
+- Any session state needed to resume safely
+
+Do not edit files or run shell commands. Do not include secrets, tokens, passwords, or credentials. The output must be useful as the only prior context for a fresh continuation session.`;
+
+function buildCompactSeedPrompt(summary: string): string {
+  return `You are initializing a fresh Codex continuation session from a compacted context.
+
+Treat the following compacted context as the complete prior context for future work. Do not edit files, run shell commands, or start implementation now. Reply with one short acknowledgement only.
+
+<COMPACTED_CONTEXT>
+${summary}
+</COMPACTED_CONTEXT>`;
+}
+
+function combineUsage(...usages: Array<CodexUsage | undefined>): CodexUsage | undefined {
+  const out: CodexUsage = {};
+  for (const usage of usages) {
+    if (!usage) continue;
+    out.input_tokens = (out.input_tokens ?? 0) + (usage.input_tokens ?? 0);
+    out.cached_input_tokens = (out.cached_input_tokens ?? 0) + (usage.cached_input_tokens ?? 0);
+    out.output_tokens = (out.output_tokens ?? 0) + (usage.output_tokens ?? 0);
+    out.reasoning_output_tokens = (out.reasoning_output_tokens ?? 0) + (usage.reasoning_output_tokens ?? 0);
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 async function runCommand(command: string, args: string[], timeoutMs = 30_000): Promise<{ code: number | null; stdout: string; stderr: string }> {
@@ -112,6 +147,7 @@ async function handleCommand(
       "/project <name> — 切换项目（项目目录已存在时）",
       "/project new <name> — 创建并切换项目",
       "/new — 清空当前项目绑定的 Codex session，下条消息新开 session",
+      "/compact — 用英文压缩当前 Codex session，并切换到新的轻量 continuation session",
       "/sessions — 列出本 bridge 记录的 Codex sessions",
       "/abort — 中止当前 chat+project 正在运行的 Codex",
       "",
@@ -184,6 +220,78 @@ async function handleCommand(
   return `❌ 未知命令: /${cmd}\n用 /help 查看可用命令。`;
 }
 
+async function compactSession(opts: {
+  client: any;
+  cfg: Config;
+  state: BridgeState;
+  runner: CodexRunner;
+  chatId: string;
+  project: string;
+  key: string;
+}): Promise<void> {
+  const { client, cfg, state, runner, chatId, project, key } = opts;
+  const previous = state.getSession(chatId, project);
+  if (!previous?.sessionId) {
+    await sendText(client, chatId, `当前项目 ${project} 还没有可压缩的 Codex session。先发一条普通消息创建 session。`);
+    return;
+  }
+
+  const cwd = ensureProject(cfg.projectsBaseDir, project);
+  const ctrl = new CardController(client, chatId, cfg.streamFlushMs, cfg.maxReplyChars);
+  const startAt = Date.now();
+  await ctrl.start(`🧹 正在压缩 Codex context · 📁 ${project}`);
+
+  try {
+    const compactResult = await runner.run({
+      key,
+      cwd,
+      prompt: COMPACT_PROMPT,
+      sessionId: previous.sessionId,
+      onText: (delta) => ctrl.append(delta),
+      onStatus: (status) => ctrl.setStatus(status),
+    });
+    const summary = compactResult.text.trim();
+    if (!summary) throw new Error("Codex did not return a compacted summary");
+
+    ctrl.setStatus("🌱 正在创建新的轻量 continuation session…");
+    const seedResult = await runner.run({
+      key,
+      cwd,
+      prompt: buildCompactSeedPrompt(summary),
+      onStatus: (status) => ctrl.setStatus(status),
+    });
+
+    const nextSessionId = seedResult.sessionId ?? compactResult.sessionId ?? previous.sessionId;
+    state.setSession({
+      sessionId: nextSessionId,
+      chatId,
+      project,
+      cwd,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      lastPrompt: "/compact",
+      lastSummary: summary.slice(0, 200),
+    });
+
+    const usage = combineUsage(compactResult.usage, seedResult.usage);
+    ctrl.append(`\n\n---\n\nCompacted continuation session: ${shortId(nextSessionId)}\n`);
+    await ctrl.finalize({
+      metrics: {
+        sessionId: nextSessionId,
+        project,
+        cwd,
+        elapsedMs: Date.now() - startAt,
+        inputTokens: usage?.input_tokens,
+        outputTokens: usage?.output_tokens,
+        cachedInputTokens: usage?.cached_input_tokens,
+      },
+    });
+  } catch (e: any) {
+    ctrl.append(`\n\n❌ ${e?.message ?? String(e)}`);
+    await ctrl.finalize({ isError: true, metrics: { sessionId: previous.sessionId, project, cwd, elapsedMs: Date.now() - startAt } });
+  }
+}
+
 export async function startBridge(cfg: Config): Promise<() => Promise<void>> {
   initLogger(cfg.logLevel);
   const log = getLogger();
@@ -233,6 +341,10 @@ export async function startBridge(cfg: Config): Promise<() => Promise<void>> {
         }
 
         if (parsed) {
+          if (parsed.cmd === "compact") {
+            await compactSession({ client, cfg, state, runner, chatId: msg.chatId, project, key });
+            return;
+          }
           const result = await handleCommand(parsed, cfg, state, runner, msg.chatId);
           if (result !== null) await sendText(client, msg.chatId, result);
           return;

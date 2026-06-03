@@ -11,6 +11,12 @@ const FALLBACK_HELP = `# codex-feishu-bridge
 
 Feishu/Lark bot bridge for Codex CLI.
 
+## Source
+
+GitHub: https://github.com/zxzhuo/codex-feishu-bridge
+
+中文作者: 卓正兴
+
 ## Usage
 
   codex-feishu init [options]      create ~/.config/codex-feishu/config.json
